@@ -1,5 +1,18 @@
 // Function to refresh the list from the server (GET request)
+const getAuthHeader = () => {
+    const username = prompt("Enter your username:");
+    const password = prompt("Enter your password:");
+    return "Basic " + btoa(`${username}:${password}`);
+};
+
 const refreshEntries = () => {
+    fetch('/api')
+    .then(res => {
+        if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+        return res.json();
+    })
+    .then(entries => { /* Continue processing */ })
+    .catch(error => console.error("Fetch error:", error));
     fetch('/api')
         .then(res => res.json())
         .then(entries => {
