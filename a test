@@ -1,0 +1,162 @@
+#!/usr/bin/env node
+
+const http = require('http');
+const fs = require('fs');
+const { createHmac, randomUUID } = require('crypto');
+
+const secret = 'abcdefg';
+const hash = (str) => createHmac('sha256', secret).update(str).digest('hex');
+
+let users = {};
+fs.readFile('passwd.db', 'utf8', (err, data) => {
+  if (err) console.error('Error reading user data:', err);
+  else users = JSON.parse(data);
+});
+
+let meals = [];
+
+const authenticate = (auth = '') => {
+  try {
+    const [user, pass] = Buffer.from(auth.slice(6), 'base64').toString().split(':');
+    return !!user && !!pass && users[user] === hash(pass + user);
+  } catch {
+    return false;
+  }
+};
+
+const handleRequest = (req, res) => {
+  const [path, query] = req.url.split('?');
+
+  if (['POST', 'PUT', 'DELETE'].includes(req.method)) {
+    if (!authenticate(req.headers.authorization)) {
+      res.writeHead(401, { 'WWW-Authenticate': "Basic realm='Calorie Tracker'" });
+      return res.end();
+    }
+
+    let uid = query && query.match(/uid=([0-9a-f-]+)/)?.[1];
+
+    if (req.method === 'DELETE') {
+      if (uid) {
+        meals = meals.filter((meal) => meal.uid !== uid);
+        res.writeHead(200).end('Meal deleted');
+      } else {
+        res.writeHead(400).end('Invalid request');
+      }
+    } else {
+      let body = '';
+      req.on('data', (data) => (body += data));
+      req.on('end', () => {
+        try {
+          const params = JSON.parse(body);
+          if (!params.name || typeof params.calories !== 'number') {
+            throw new Error('Invalid meal data');
+          }
+
+          if (!uid && req.method === 'POST') {
+            uid = randomUUID();
+            meals.push({ ...params, uid });
+            res.writeHead(201).end(uid);
+          } else if (uid && req.method === 'PUT') {
+            const index = meals.findIndex((meal) => meal.uid === uid);
+            if (index >= 0) {
+              meals[index] = { ...params, uid };
+              res.writeHead(200).end('Meal updated');
+            } else {
+              res.writeHead(404).end('Meal not found');
+            }
+          } else {
+            res.writeHead(400).end('Invalid request');
+          }
+        } catch (err) {
+          res.writeHead(400).end('Invalid JSON');
+        }
+      });
+    }
+  } else {
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify(meals));
+  }
+};
+
+const server = http.createServer(handleRequest);
+server.listen(3000, () => console.log('Calorie Tracker API running on port 3000'));
+
+// Client-side script (to be used in an HTML page)
+const refreshMeals = () => {
+  fetch('/api')
+    .then((res) => res.json())
+    .then((meals) => {
+      document.body.innerHTML = '';
+      meals.forEach((meal) => {
+        const div = document.createElement('div');
+        div.textContent = `${meal.name}: ${meal.calories} kcal`;
+        document.body.appendChild(div);
+      });
+    });
+};
+
+refreshMeals();
+
+document.body.addEventListener('click', (ev) => {
+  const name = document.querySelector('#mealName').value;
+  const calories = parseInt(document.querySelector('#calories').value, 10);
+
+  if (!name || isNaN(calories)) return alert('Enter valid meal data');
+
+  fetch('/api', {
+    method: 'POST',
+    body: JSON.stringify({ name, calories }),
+  }).then(refreshMeals);
+});
+//
+
+
+
+
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <title>Calorie Tracker</title>
+</head>
+
+<body>
+  <h1>Calorie Tracker</h1>
+  <input id="mealName" placeholder="Meal Name" />
+  <input id="calories" placeholder="Calories" type="number" />
+  <button onclick="addMeal()">Add Meal</button>
+  <div id="mealList"></div>
+
+  <script>
+    const refreshMeals = () => {
+      fetch('/api')
+        .then((res) => res.json())
+        .then((meals) => {
+          const mealList = document.getElementById('mealList');
+          mealList.innerHTML = '';
+          meals.forEach((meal) => {
+            const div = document.createElement('div');
+            div.textContent = `${meal.name}: ${meal.calories} kcal`;
+            mealList.appendChild(div);
+          });
+        });
+    };
+
+    const addMeal = () => {
+      const name = document.getElementById('mealName').value;
+      const calories = parseInt(document.getElementById('calories').value, 10);
+
+      if (!name || isNaN(calories)) return alert('Enter valid meal data');
+
+      fetch('/api', {
+        method: 'POST',
+        body: JSON.stringify({ name, calories }),
+      }).then(refreshMeals);
+    };
+
+    refreshMeals();
+  </script>
+</body>
+
+</html>
