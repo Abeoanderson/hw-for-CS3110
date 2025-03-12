@@ -1,9 +1,3 @@
-// Function to refresh the list from the server (GET request)
-const getAuthHeader = () => {
-    const username = prompt("Enter your username:");
-    const password = prompt("Enter your password:");
-    return "Basic " + btoa(`${username}:${password}`);
-};
 
 const refreshEntries = () => {
     fetch('/api')
