@@ -30,6 +30,7 @@ const handleRequest = (req, res) => {
     if (req.method === "GET") {
         sendResponse(res, 200, foodLog);
     } else if (["POST", "PUT", "DELETE"].includes(req.method)) {
+        console.log(req.headers.authorization)
         if (!authenticate(req.headers.authorization)) {
             sendResponse(res, 401, { error: "Unauthorized" }); // Fixing missing auth check
             return;
