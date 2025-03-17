@@ -1,15 +1,19 @@
+const prod = false;
+const path = prod ? 'https://abesdomainexpansion.com.mooo.com/api/' : 'http://localhost:3000/';
+
 
 const refreshEntries = () => {
-    fetch('/api')
+    fetch(path)
     .then(res => {
         if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
         return res.json();
     })
     .then(entries => { /* Continue processing */ })
     .catch(error => console.error("Fetch error:", error));
-    fetch('/api')
+    fetch(path)
         .then(res => res.json())
         .then(entries => {
+            console.log('entries', entries);
             const totalCalories = entries.reduce((sum, entry) => sum + entry.calories, 0);
             document.getElementById('totalCalories').innerText = totalCalories;
             
@@ -45,7 +49,7 @@ document.getElementById('addButton').addEventListener('click', () => {
     const name = foodSelect.value;
     const calories = parseInt(foodSelect.selectedOptions[0].dataset.calories, 10);
 
-    fetch('/api', {
+    fetch(path, {
         method: 'POST',
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name, calories })
@@ -62,7 +66,7 @@ const updateEntry = (index) => {
     const newCalories = prompt("Enter new calorie amount:");
     if (!newCalories || isNaN(newCalories)) return;
 
-    fetch(`/api/${index}`, {
+    fetch(`${path}${index}`, {
         method: 'PUT',
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ calories: Number(newCalories) })
@@ -73,7 +77,7 @@ const updateEntry = (index) => {
 
 // Delete an entry (DELETE request)
 const deleteEntry = (index) => {
-    fetch(`/api/${index}`, { method: 'DELETE' })
+    fetch(`${path}${index}`, { method: 'DELETE' })
         .then(response => response.json())
         .then(refreshEntries)
         .catch(err => console.error("Delete error:", err));

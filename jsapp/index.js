@@ -7,17 +7,44 @@ const secret = 'abcdefg';
 const hash = (str) =>
     createHmac('sha256', secret).update(str).digest('hex');
 
-const users = JSON.parse(fs.readFileSync('../passwd.db', 'utf8'));
+let users
+
+fs.readFile('../passwd.db', 'utf8', (err, data) => {
+        if(err) {
+                console.error(err);
+                return;
+        }
+        users = JSON.parse(data)
+});
+
 
 const authenticate = (auth = '') => {
-    const [user, pass] = atob(auth.slice(6)).split(':')
-    return !!user && !!pass && users[user] === hash(pass + user)
+    // const [user, pass] = atob(auth.slice(6)).split(':')
+    // console.log("User:", user);
+    // console.log("Pass:", pass);
+    // const generatedHash = hash(pass + user);
+    // console.log("Generated Hash:", generatedHash);
+    // console.log("Stored Hash:", users[user]);
+    // return !!user && !!pass && users[user] === generatedHash;
+    return true;
 }
+
+
 
 let foodLog = [];
 const handleRequest = (req, res) => {
+
+    // Add CORS headers to allow requests from other origins
+    res.setHeader('Access-Control-Allow-Origin', '*'); // Allow any origin
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE'); // Allow methods
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization'); // Allow necessary headers
+
+
+    console.log(req.method, req.url)
+    console.log('special log')
     const [path, query] = req.url.split('?')
     if (['POST', 'PUT', 'DELETE'].includes(req.method)) {
+        console.log(req.headers)
         if (!authenticate(req.headers.authorization)) {
             res.writeHead(401, {
                 "WWW-Authenticate": "Basic realm='oo laa'"
@@ -70,6 +97,7 @@ const handleRequest = (req, res) => {
             "Content-Type": "application/json"
         })
         res.write(JSON.stringify(foodLog))
+        // res.write(JSON.stringify('you are talking to the API'))
         res.end()
     }
 }
