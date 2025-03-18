@@ -1,5 +1,5 @@
 const prod = false;
-const path = prod ? 'https://abesdomainexpansion.com.mooo.com/api/' : 'http://localhost:3000/';
+const path = 'https://abesdomainexpansion.com.mooo.com/api/' 
 
 
 let authHeader = '';
