@@ -1,29 +1,77 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <title>Meal Tracker</title>
   <meta charset="UTF-8" />
+  <title>Meal Tracker</title>
   <style>
-    body { font-family: Arial, sans-serif; padding: 20px; }
-    .meal { margin: 10px 0; }
-    button { margin-left: 10px; }
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      background: #f9f9f9;
+    }
+    nav {
+      display: flex;
+      justify-content: space-between;
+      background: #4CAF50;
+      padding: 1em;
+      color: white;
+    }
+    nav button {
+      margin-left: 1em;
+      padding: 0.5em 1em;
+      cursor: pointer;
+    }
+    #container {
+      padding: 2em;
+    }
+    #mealForm {
+      margin-bottom: 2em;
+    }
+    .meal {
+      margin: 1em 0;
+      padding: 1em;
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    }
   </style>
 </head>
 <body>
-  <h1>Meal Tracker</h1>
+  <nav>
+    <div>🍽️ Meal Tracker</div>
+    <div>
+      <button id="loginBtn">Login</button>
+      <button id="logoutBtn" style="display:none;">Logout</button>
+      <button id="adminPanelBtn" style="display:none;">Admin Panel</button>
+    </div>
+  </nav>
 
-  <!-- Login Form -->
-  <button id="login-btn">Log In</button>
+  <div id="container">
+    <h1>Track Your Meals</h1>
 
-  <!-- Add Meal Form -->
-  <h2>Add a Meal</h2>
-  <input id="meal-name" placeholder="Meal Name" />
-  <input id="meal-type" placeholder="Meal Type" />
-  <button id="add-meal">Add Meal</button>
+    <form id="mealForm">
+      <input type="text" id="mealName" placeholder="Meal Name" required />
+      <input type="text" id="mealType" placeholder="Meal Type" required />
+      <button type="submit">Add Meal</button>
+    </form>
 
-  <!-- Meal List -->
-  <h2>Meals</h2>
-  <div id="meals-container"></div>
+    <div id="mealsList"></div>
+
+    <div id="adminPanel" style="display:none;">
+      <h2>Create New User</h2>
+      <form id="userForm">
+        <input type="text" id="newUsername" placeholder="Username" required />
+        <input type="password" id="newPassword" placeholder="Password" required />
+        <select id="userRole">
+          <option value="author">Author</option>
+          <option value="admin">Admin</option>
+        </select>
+        <button type="submit">Create User</button>
+      </form>
+    </div>
+  </div>
 
   <script src="script.js"></script>
 </body>

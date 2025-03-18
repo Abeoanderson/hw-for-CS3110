@@ -1,105 +1,106 @@
 #!/usr/bin/env node
 
-const http = require('http');
-const fs = require('fs/promises');
-const sqlite3 = require('sqlite3').verbose();
+const https = require('https');
+const fs = require('fs');
 const { createHmac, randomUUID } = require('crypto');
+const sqlite3 = require('sqlite3').verbose();
 
 const secret = 'abcdefg';
 const hash = (str) => createHmac('sha256', secret).update(str).digest('hex');
 
 const db = new sqlite3.Database('passwd.sqlite');
 
-// Ensure tables exist
-const initDB = () => {
-  db.run(`CREATE TABLE IF NOT EXISTS users (username TEXT UNIQUE, password TEXT, role TEXT)`);
-  db.run(`CREATE TABLE IF NOT EXISTS meals (uid TEXT PRIMARY KEY, name TEXT, type TEXT)`);
+db.serialize(() => {
+  db.run(`CREATE TABLE IF NOT EXISTS users (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    username TEXT UNIQUE,
+    password TEXT,
+    role TEXT
+  )`);
 
-  // Create default admin user (abe:pass)
-  const adminPass = hash('pass' + 'abe');
-  db.run('INSERT OR IGNORE INTO users (username, password, role) VALUES (?, ?, ?)', ['abe', adminPass, 'admin']);
-};
-
-initDB();
-
-// Authenticate user
-const authenticate = (auth) => {
-  if (!auth) return null;
-  const [user, pass] = Buffer.from(auth.split(' ')[1], 'base64').toString().split(':');
-  return new Promise((resolve) => {
-    db.get('SELECT * FROM users WHERE username = ? AND password = ?', [user, hash(pass + user)], (err, row) => {
-      if (err || !row) return resolve(null);
-      resolve(row);
-    });
+  db.get('SELECT * FROM users WHERE username = ?', ['abe'], (err, row) => {
+    if (!row) {
+      db.run('INSERT INTO users (username, password, role) VALUES (?, ?, ?)', ['abe', hash('passabe'), 'admin']);
+      console.log('Admin user created: abe:pass');
+    }
   });
+
+  db.run(`CREATE TABLE IF NOT EXISTS meals (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT,
+    type TEXT,
+    uid TEXT
+  )`);
+});
+
+const authenticate = (auth = '') => {
+  try {
+    const [user, pass] = Buffer.from(auth.split(' ')[1], 'base64').toString().split(':');
+    return new Promise((resolve) => {
+      db.get('SELECT * FROM users WHERE username = ?', [user], (err, row) => {
+        if (row && row.password === hash(pass + user)) {
+          resolve(row);
+        } else {
+          resolve(null);
+        }
+      });
+    });
+  } catch {
+    return Promise.resolve(null);
+  }
 };
 
 const handleRequest = async (req, res) => {
-  const [path, query] = req.url.split('?');
+  const [path] = req.url.split('?');
+  const user = await authenticate(req.headers.authorization);
 
   if (req.method === 'GET' && path === '/api/meals') {
     db.all('SELECT * FROM meals', (err, rows) => {
       res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify(rows || []));
+      res.end(JSON.stringify(rows));
     });
-  } else if (['POST', 'PUT', 'DELETE'].includes(req.method) && path === '/api/meals') {
-    const user = await authenticate(req.headers.authorization);
+  } else if (['POST', 'PUT', 'DELETE'].includes(req.method)) {
     if (!user) {
       res.writeHead(401, { 'WWW-Authenticate': 'Basic realm="Meal Tracker"' });
-      return res.end('Unauthorized');
-    }
-
-    let body = '';
-    req.on('data', (chunk) => (body += chunk));
-
-    req.on('end', () => {
-      const params = body ? JSON.parse(body) : {};
-      const uidMatch = query && query.match(/uid=([0-9a-f-]+)/);
-      const uid = uidMatch ? uidMatch[1] : null;
-
-      if (req.method === 'POST') {
-        const newUid = randomUUID();
-        db.run('INSERT INTO meals (uid, name, type) VALUES (?, ?, ?)', [newUid, params.name, params.type], () => {
-          res.writeHead(201).end(newUid);
-        });
-      } else if (req.method === 'PUT' && uid) {
-        db.run('UPDATE meals SET name = ?, type = ? WHERE uid = ?', [params.name, params.type, uid], () => {
-          res.writeHead(200).end('Updated');
-        });
-      } else if (req.method === 'DELETE' && uid) {
-        db.run('DELETE FROM meals WHERE uid = ?', [uid], () => {
-          res.writeHead(200).end('Deleted');
-        });
-      } else {
-        res.writeHead(400).end('Bad Request');
-      }
-    });
-  } else if (req.method === 'POST' && path === '/api/users') {
-    const user = await authenticate(req.headers.authorization);
-    if (!user || user.role !== 'admin') {
-      res.writeHead(403).end('Forbidden');
+      res.end('Unauthorized');
       return;
     }
 
     let body = '';
     req.on('data', (chunk) => (body += chunk));
-
     req.on('end', () => {
-      const { username, password, role } = JSON.parse(body);
-      if (!username || !password || (role !== 'admin' && role !== 'author')) {
-        res.writeHead(400).end('Invalid data');
-        return;
+      const data = JSON.parse(body);
+      if (req.method === 'POST' && path === '/api/meals') {
+        const uid = randomUUID();
+        db.run('INSERT INTO meals (name, type, uid) VALUES (?, ?, ?)', [data.name, data.type, uid], () => {
+          res.writeHead(201).end(uid);
+        });
+      } else if (req.method === 'DELETE' && path.startsWith('/api/meals/')) {
+        const uid = path.split('/').pop();
+        db.run('DELETE FROM meals WHERE uid = ?', [uid], () => {
+          res.writeHead(200).end('Deleted');
+        });
+      } else if (req.method === 'POST' && path === '/api/users' && user.role === 'admin') {
+        db.run('INSERT INTO users (username, password, role) VALUES (?, ?, ?)', [data.username, hash(data.password + data.username), data.role], () => {
+          res.writeHead(201).end('User created');
+        });
+      } else {
+        res.writeHead(403).end('Forbidden');
       }
-      const hashedPassword = hash(password + username);
-      db.run('INSERT INTO users (username, password, role) VALUES (?, ?, ?)', [username, hashedPassword, role], (err) => {
-        if (err) res.writeHead(500).end('Error creating user');
-        else res.writeHead(201).end('User created');
-      });
     });
+  } else if (req.method === 'GET' && path === '/api/logout') {
+    res.writeHead(401, { 'WWW-Authenticate': 'Basic realm="Meal Tracker"' });
+    res.end('Logged out');
   } else {
     res.writeHead(404).end('Not Found');
   }
 };
 
-const server = http.createServer(handleRequest);
-server.listen(3000, () => console.log('Server running on https://localhost:3000'));
+const options = {
+  key: fs.readFileSync('key.pem'),
+  cert: fs.readFileSync('cert.pem'),
+};
+
+https.createServer(options, handleRequest).listen(3000, () => {
+  console.log('Server running on https://localhost:3000');
+});
