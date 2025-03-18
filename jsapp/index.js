@@ -1,106 +1,63 @@
 #!/usr/bin/env node
-const http = require('http')
-const fs = require('node:fs');
-const { createHmac, randomUUID } = require('node:crypto');
+
+const https = require('https');
+const fs = require('fs');
+const { createHmac, randomUUID } = require('crypto');
+const sqlite3 = require('sqlite3');
+const db = new sqlite3.Database('passwd.sqlite');
 
 const secret = 'abcdefg';
-const hash = (str) =>
-    createHmac('sha256', secret).update(str).digest('hex');
+const hash = (str) => createHmac('sha256', secret).update(str).digest('hex');
 
-let users
-
-fs.readFile('../passwd.db', 'utf8', (err, data) => {
-        if(err) {
-                console.error(err);
-                return;
-        }
-        users = JSON.parse(data)
-});
-
+db.run(`CREATE TABLE IF NOT EXISTS meals (id TEXT PRIMARY KEY, name TEXT, type TEXT)`);
+db.run(`CREATE TABLE IF NOT EXISTS users (username TEXT PRIMARY KEY, password TEXT, role TEXT)`);
 
 const authenticate = (auth = '') => {
-    // const [user, pass] = atob(auth.slice(6)).split(':')
-    // console.log("User:", user);
-    // console.log("Pass:", pass);
-    // const generatedHash = hash(pass + user);
-    // console.log("Generated Hash:", generatedHash);
-    // console.log("Stored Hash:", users[user]);
-    // return !!user && !!pass && users[user] === generatedHash;
-    return true;
-}
+  const [user, pass] = Buffer.from(auth.slice(6), 'base64').toString().split(':');
+  return new Promise((resolve) => {
+    db.get('SELECT * FROM users WHERE username = ? AND password = ?', [user, hash(pass + user)], (err, row) => {
+      if (err || !row) return resolve(null);
+      resolve(row);
+    });
+  });
+};
 
+const handleRequest = async (req, res) => {
+  const [path] = req.url.split('?');
 
+  if (req.method === 'GET' && path === '/api/meals') {
+    db.all('SELECT * FROM meals', (err, rows) => {
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify(rows));
+    });
+    return;
+  }
 
-let foodLog = [];
-const handleRequest = (req, res) => {
-
-    // Add CORS headers to allow requests from other origins
-    res.setHeader('Access-Control-Allow-Origin', '*'); // Allow any origin
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE'); // Allow methods
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization'); // Allow necessary headers
-
-
-    console.log(req.method, req.url)
-    console.log('special log')
-    const [path, query] = req.url.split('?')
-    if (['POST', 'PUT', 'DELETE'].includes(req.method)) {
-        console.log(req.headers)
-        if (!authenticate(req.headers.authorization)) {
-            res.writeHead(401, {
-                "WWW-Authenticate": "Basic realm='oo laa'"
-            })
-            res.end()
-        } else {
-            let uid = query && query.match(/uid=([0-9a-f-]+)/)
-            if (req.method === 'DELETE') {
-                if (uid[1]) {
-                    foodLog = foodLog.filter(
-                        (d) => d.uid != uid[1]
-                    )
-                    res.writeHead(200).end()
-                } else {
-                    res.writeHead(400).end()
-                }
-            } else {
-                let body = ''
-                req.on('data', (data) => {
-                    body += data
-                })
-                req.on('end', () => {
-                    try {
-                        const params = JSON.parse(body)
-                        if (!uid && req.method == 'POST') {
-                            uid = randomUUID()
-                            foodLog.push({ ...params, uid })
-                            res.writeHead(201).end(uid)
-                        } else if (uid && req.method == 'PUT') {
-                            const i = foodLog.findIndex(
-                                (d) => d.uid == uid[1]
-                            )
-                            if (i >= 0) {
-                                foodLog[i] = params
-                                res.writeHead(200).end()
-                            } else {
-                                res.writeHead(404).end()
-                            }
-                        } else {
-                            res.writeHead(400).end()
-                        }
-                    } catch {
-                        res.writeHead(400).end()
-                    }
-                })
-            }
-        }
-    } else {
-        res.writeHead(200, {
-            "Content-Type": "application/json"
-        })
-        res.write(JSON.stringify(foodLog))
-        // res.write(JSON.stringify('you are talking to the API'))
-        res.end()
+  if (['POST', 'PUT', 'DELETE'].includes(req.method) && path.startsWith('/api/meals')) {
+    const user = await authenticate(req.headers.authorization);
+    if (!user) {
+      res.writeHead(401, { 'WWW-Authenticate': 'Basic realm="Secure"' });
+      return res.end();
     }
-}
+
+    if (req.method === 'POST' && user.role === 'author') {
+      let body = '';
+      req.on('data', chunk => body += chunk);
+      req.on('end', () => {
+        const { name, type } = JSON.parse(body);
+        const id = randomUUID();
+        db.run('INSERT INTO meals VALUES (?, ?, ?)', [id, name, type], () => {
+          res.writeHead(201).end();
+        });
+      });
+    }
+  }
+};
+
+const options = {
+  key: fs.readFileSync('key.pem'),
+  cert: fs.readFileSync('cert.pem')
+};
 
 // Start the server
 const server = http.createServer(handleRequest);
