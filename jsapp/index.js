@@ -14,6 +14,10 @@ const db = new sqlite3.Database('passwd.sqlite');
 const initDB = () => {
   db.run(`CREATE TABLE IF NOT EXISTS users (username TEXT UNIQUE, password TEXT, role TEXT)`);
   db.run(`CREATE TABLE IF NOT EXISTS meals (uid TEXT PRIMARY KEY, name TEXT, type TEXT)`);
+
+  // Create default admin user (abe:pass)
+  const adminPass = hash('pass' + 'abe');
+  db.run('INSERT OR IGNORE INTO users (username, password, role) VALUES (?, ?, ?)', ['abe', adminPass, 'admin']);
 };
 
 initDB();
@@ -69,6 +73,28 @@ const handleRequest = async (req, res) => {
       } else {
         res.writeHead(400).end('Bad Request');
       }
+    });
+  } else if (req.method === 'POST' && path === '/api/users') {
+    const user = await authenticate(req.headers.authorization);
+    if (!user || user.role !== 'admin') {
+      res.writeHead(403).end('Forbidden');
+      return;
+    }
+
+    let body = '';
+    req.on('data', (chunk) => (body += chunk));
+
+    req.on('end', () => {
+      const { username, password, role } = JSON.parse(body);
+      if (!username || !password || (role !== 'admin' && role !== 'author')) {
+        res.writeHead(400).end('Invalid data');
+        return;
+      }
+      const hashedPassword = hash(password + username);
+      db.run('INSERT INTO users (username, password, role) VALUES (?, ?, ?)', [username, hashedPassword, role], (err) => {
+        if (err) res.writeHead(500).end('Error creating user');
+        else res.writeHead(201).end('User created');
+      });
     });
   } else {
     res.writeHead(404).end('Not Found');
