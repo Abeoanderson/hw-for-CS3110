@@ -1,24 +1,29 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Meal Tracker</title>
-  <link rel="stylesheet" href="styles.css">
+  <meta charset="UTF-8" />
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; }
+    .meal { margin: 10px 0; }
+    button { margin-left: 10px; }
+  </style>
 </head>
 <body>
   <h1>Meal Tracker</h1>
 
-  <select id="mealSelect">
-    <option value="breakfast">Breakfast</option>
-    <option value="lunch">Lunch</option>
-    <option value="dinner">Dinner</option>
-  </select>
+  <!-- Login Form -->
+  <button id="login-btn">Log In</button>
 
-  <input type="text" id="mealInput" placeholder="Enter your meal" />
-  <button id="addMeal">Add Meal</button>
+  <!-- Add Meal Form -->
+  <h2>Add a Meal</h2>
+  <input id="meal-name" placeholder="Meal Name" />
+  <input id="meal-type" placeholder="Meal Type" />
+  <button id="add-meal">Add Meal</button>
 
-  <ul id="mealList"></ul>
+  <!-- Meal List -->
+  <h2>Meals</h2>
+  <div id="meals-container"></div>
 
   <script src="script.js"></script>
 </body>
