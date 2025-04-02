@@ -18,6 +18,9 @@ const initDB = () => {
   // Create default admin user (abe:pass)
   const adminPass = hash('pass' + 'abe');
   db.run('INSERT OR IGNORE INTO users (username, password, role) VALUES (?, ?, ?)', ['abe', adminPass, 'admin']);
+  const authPass = hash('pass2' + 'notabe');
+  db.run('INSERT OR IGNORE INTO users (username, password, role) VALUES (?, ?, ?)', ['notabe', authPassPass, 'user']);
+
 };
 
 initDB();
