@@ -153,8 +153,5 @@ app.post('/users', auth, async (req, res) => {
     res.json({ message: "User created", users });
 });
 
-// Start the server
-const server = http.createServer(handleRequest);
-server.listen(3000, () => console.log("Server running on port 3000"));
 // Start HTTPS Server
 https.createServer(options, app).listen(3000, () => console.log("Server running on https://localhost:3000"));
