@@ -36,15 +36,30 @@ const authenticate = (auth) => {
     });
   });
 };
-
+const countdown = (res, count) => {
+  res.write('data: ' + count + '\n\n')
+  if(count > 0) {
+    setTimeout(() => countdown(res, count -1), 1000)
+  } else {
+    res.end()
+  }
+}
 const handleRequest = async (req, res) => {
   const [path, query] = req.url.split('?');
-
   if (req.method === 'GET' && path === '/api/meals') {
     db.all('SELECT * FROM meals', (err, rows) => {
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify(rows || []));
     });
+  } else if (path == '/le-stream') {
+    res.writeHead(200, {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        'Connection':'keep-alive',
+        'X-Accel-Buffering': 'no',
+    })
+    countdown(res, 10)
+
   } else if (['POST', 'PUT', 'DELETE'].includes(req.method) && path === '/api/meals') {
     const user = await authenticate(req.headers.authorization);
     if (!user) {

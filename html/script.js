@@ -79,3 +79,8 @@ const renderMeals = (meals) => {
 
 // Initial load
 fetchMeals();
+
+const source = new EventSource('/api/meals')
+source.addEventListener('message', ({ data }) => {
+  renderMeals(JSON.parse(data))
+})
