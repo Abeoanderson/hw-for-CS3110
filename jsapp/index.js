@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-<<<<<<< Updated upstream
 
 const https = require('https');
 const fs = require('fs');
@@ -55,11 +54,6 @@ const handleRequest = async (req, res) => {
   }
 };
 
-const options = {
-  key: fs.readFileSync('key.pem'),
-  cert: fs.readFileSync('cert.pem')
-};
-=======
 const express = require('express');
 const fs = require('fs');
 const https = require('https');
@@ -72,7 +66,6 @@ app.use(express.json());
 const USERS_FILE = 'passwd.db';
 let foodLog = [];
 let users = {};
->>>>>>> Stashed changes
 
 // Load SSL certificates
 const options = {

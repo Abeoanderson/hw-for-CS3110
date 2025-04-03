@@ -1,4 +1,3 @@
-<<<<<<< Updated upstream
 const refreshMeals = () => {
     fetch('/api/meals')
       .then(res => res.json())
@@ -28,7 +27,6 @@ const refreshMeals = () => {
       body: JSON.stringify({ name, type })
     }).then(refreshMeals);
   });
-=======
 // Function to refresh the list from the server (GET request)
 const refreshEntries = () => {
     fetch('/api')
@@ -102,4 +100,3 @@ const deleteEntry = (index) => {
         .then(refreshEntries)
         .catch(err => console.error("Delete error:", err));
 };
->>>>>>> Stashed changes
