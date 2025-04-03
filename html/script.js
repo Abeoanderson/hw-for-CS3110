@@ -28,6 +28,7 @@ const refreshMeals = () => {
       body: JSON.stringify({ name, type })
     }).then(refreshMeals);
   });  });
+  });
 =======
 // Function to refresh the list from the server (GET request)
 const refreshEntries = () => {
