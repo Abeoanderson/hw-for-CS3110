@@ -5,6 +5,9 @@ const fs = require('fs');
 const { createHmac, randomUUID } = require('crypto');
 const sqlite3 = require('sqlite3');
 const db = new sqlite3.Database('passwd.sqlite');
+const express = require('express');
+const bcrypt = require('bcrypt');
+const basicAuth = require('basic-auth');
 
 const secret = 'abcdefg';
 const hash = (str) => createHmac('sha256', secret).update(str).digest('hex');
@@ -53,12 +56,6 @@ const handleRequest = async (req, res) => {
     }
   }
 };
-
-const express = require('express');
-const fs = require('fs');
-const https = require('https');
-const bcrypt = require('bcrypt');
-const basicAuth = require('basic-auth');
 
 const app = express();
 app.use(express.json());
